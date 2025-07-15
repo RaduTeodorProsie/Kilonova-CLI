@@ -950,6 +950,7 @@ dependencies = [
  "colored",
  "indicatif",
  "keyring",
+ "once_cell",
  "reqwest",
  "tokio",
 ]

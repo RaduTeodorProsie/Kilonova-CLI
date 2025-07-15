@@ -1,7 +1,7 @@
-use std::ffi::OsString;
 use clap::{Parser, Subcommand};
+use std::ffi::OsString;
 
-#[derive (Debug, Parser)]
+#[derive(Debug, Parser)]
 #[command(name = "kn")]
 #[command(about = "A simple CLI tool", version = "0.1")]
 pub struct Cli {
@@ -14,6 +14,7 @@ pub enum Commands {
     Start,
     Login,
     Logout,
-    Search {name: String},
-    Submit {path: OsString},
+    Me,
+    Search { name: String },
+    Submit { path: OsString },
 }

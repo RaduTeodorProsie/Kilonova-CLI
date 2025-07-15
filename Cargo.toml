@@ -6,8 +6,9 @@ edition = "2024"
 [dependencies]
 indicatif = "0.18.0"
 clap = { version = "4.5.41", features = ["derive"] }
-keyring = { version = "4.0.0-rc.1", features = ["apple-native", "windows-native", "linux-native"] }
+keyring = { version = "4.0.0-rc.1", features = ["apple-native", "windows-native"] }
 reqwest = { version = "0.12.22", features = ["blocking"] }
 tokio = { version = "1.46.1", features = ["rt", "rt-multi-thread", "macros"] }
 colored = "3.0.0"
 chrono = "0.4.41"
+once_cell = "1.21.3"
