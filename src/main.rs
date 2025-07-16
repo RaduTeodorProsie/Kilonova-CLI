@@ -5,11 +5,13 @@ use std::{env, io};
 
 mod cli;
 mod credential_manager;
+mod logging;
+
 
 fn main() {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Login => {}
+        Commands::Login => {logging::login();}
         Commands::Logout => {}
         Commands::Me => {}
         Commands::Search { .. } => {}
