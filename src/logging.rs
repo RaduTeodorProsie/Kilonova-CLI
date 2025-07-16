@@ -1,9 +1,13 @@
+use crate::credential_manager::CredentialManager;
+use crate::{credential_manager, waiter};
+use colored::Colorize;
+use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::blocking::Client;
 use serde_json::Value;
 use std::io;
 use std::io::Write;
-use colored::Colorize;
-use crate::credential_manager::CredentialManager;
+use std::time::Duration;
+use waiter::Waiter;
 
 fn read_username_and_password() -> (String, String) {
     use rpassword::read_password;
@@ -25,6 +29,8 @@ fn read_username_and_password() -> (String, String) {
 }
 
 fn internal_login(username: String, password: String) {
+    let mut spinner = Waiter::start();
+
     let client = Client::new();
     let response_text = client
         .post("https://kilonova.ro/api/auth/login")
@@ -34,21 +40,24 @@ fn internal_login(username: String, password: String) {
         .text()
         .unwrap();
 
+    spinner.stop();
+
     let response: Value = serde_json::from_str(&response_text).unwrap();
     let status = response["status"].as_str().unwrap();
-    let data   = response["data"].as_str().unwrap();
+    let data = response["data"].as_str().unwrap();
 
     match status {
         "success" => {
             println!("{}", "Successfully logged in ✅".green());
             use super::credential_manager;
-            CredentialManager::global().set::<credential_manager::Cache>(data).expect("Could not cache the token");
+            CredentialManager::global()
+                .set::<credential_manager::Token>(data)
+                .expect("Could not cache the token");
         }
         _ => {
             println!("{}", "Wrong credentials".red());
         }
     }
-
 }
 
 pub fn login() {
@@ -56,9 +65,22 @@ pub fn login() {
     internal_login(username, password);
 }
 
+pub fn logout() {
+    let token = CredentialManager::global()
+        .get::<credential_manager::Token>()
+        .expect("Could not get token. Maybe you are not logged in?");
+    let client = Client::new()
+        .post("https://kilonova.ro/api/auth/logout")
+        .header("Authorization", token)
+        .send()
+        .expect("Could not send the request to logout");
+    println!("{}", "Successfully logged out ✅".green());
+}
+
 mod tests {
     #[test]
     fn test_login() {
         super::internal_login("tester".to_string(), "test123".to_string());
+        super::logout();
     }
 }
