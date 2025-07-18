@@ -97,7 +97,9 @@ pub fn logout() {
 mod tests {
     #[test]
     fn test_login() {
-        super::login_and_print("tester".to_string(), "test123".to_string());
+        let username = std::env::var("TEST_USERNAME").unwrap();
+        let password = std::env::var("TEST_PASSWORD").unwrap();
+        super::login_and_print(username, password);
         super::logout();
     }
 }
