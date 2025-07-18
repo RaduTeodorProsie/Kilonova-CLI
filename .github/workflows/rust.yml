@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-      TEST_PASSWORD : ${{ secrets.TEST_PASSWORD }}
+      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
       # or ${{ vars.KILO_TOKEN }}
     steps:
       - uses: actions/checkout@v4
