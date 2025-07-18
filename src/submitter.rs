@@ -1,8 +1,23 @@
 use super::*;
 use colored::Colorize;
+use serde::Deserialize;
+use serde_json;
+use serde_json::Value;
 use std::ffi::OsString;
 use std::path::PathBuf;
+use std::thread;
 use std::time::Duration;
+
+#[derive(Deserialize)]
+struct ApiResponse {
+    data: SubmissionData,
+}
+
+#[derive(Deserialize)]
+struct SubmissionData {
+    status: String,
+    score: f64,
+}
 
 pub fn submit(path: OsString) {
     let problem =
@@ -65,8 +80,50 @@ pub fn submit(path: OsString) {
         return;
     }
 
+    let json: Value = serde_json::from_str(&response.text().unwrap())
+        .expect("Couldn't parse the response from the server");
+    let submission_id = json["data"].as_u64().unwrap();
+    let submission_id = submission_id.to_string();
+
     println!("{}", "Submitted your code. Judging...".green());
+
     let spinner = waiter::Waiter::start();
     const POLL_INTERVAL: Duration = Duration::from_secs(5);
-    spinner.stop();
+    let api_url = format!(
+        "https://kilonova.ro/api/submissions/getByID?id={}",
+        submission_id
+    );
+
+    loop {
+        match reqwest::blocking::Client::new().get(&api_url).send() {
+            Ok(response) => {
+                let json = response.text().unwrap();
+                let json: ApiResponse = serde_json::from_str(&json)
+                    .expect("Couldn't parse the response from the server");
+                let (status, score): (&str, f64) = (json.data.status.as_ref(), json.data.score);
+                if status == "finished" {
+                    spinner.stop();
+
+                    let score = score.floor() as i64;
+                    if score == 100 {
+                        println!("{} {}", "Your score is : ".green(), score);
+                    } else if score <= 50 {
+                        println!("{} {}", "Your score is : ".red(), score);
+                    } else {
+                        println!("{} {}", "Your score is : ".yellow(), score);
+                    }
+
+                    break;
+                }
+            }
+
+            Err(e) => {
+                spinner.stop();
+                eprintln!("Request failed: {}", e);
+                break;
+            }
+        }
+
+        thread::sleep(POLL_INTERVAL);
+    }
 }
