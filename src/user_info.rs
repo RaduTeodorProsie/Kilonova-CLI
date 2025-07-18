@@ -20,10 +20,8 @@ struct UserData {
 }
 
 pub fn get_user() -> Result<String, String> {
-
-    let token = credential_manager::CredentialManager::global()
-        .get::<credential_manager::Token>();
-    if token.is_none(){
+    let token = credential_manager::CredentialManager::global().get::<credential_manager::Token>();
+    if token.is_none() {
         return Err(String::from("You need to login before doing this."));
     }
 
@@ -33,8 +31,10 @@ pub fn get_user() -> Result<String, String> {
         .get("https://kilonova.ro/api/user/self")
         .header("Authorization", token)
         .timeout(std::time::Duration::from_secs(10))
-        .send().map_err(|e| e.to_string())?
-        .text().map_err(|e| e.to_string())?;
+        .send()
+        .map_err(|e| e.to_string())?
+        .text()
+        .map_err(|e| e.to_string())?;
     let api_response = serde_json::from_str::<ApiResponse>(&resp);
     let api_response = api_response.map(|api_response| api_response.data.name);
     api_response.map_err(|e| e.to_string())

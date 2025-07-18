@@ -1,5 +1,5 @@
-use colored::Colorize;
 use super::*;
+use colored::Colorize;
 
 pub fn setup() {
     let spinner = waiter::Waiter::start();
@@ -17,19 +17,27 @@ pub fn setup() {
     spinner.stop();
     let user_info = user_info::get_user();
     let user_info = match user_info {
-        Ok(user) => format!("{}", format!("Logged in as {} ✅", user).green()),
+        Ok(user) => {
+            match logging::extend_session() {
+                Ok(_) => println!(
+                    "{}",
+                    "Session successfully extended for another 30 days".green()
+                ),
+                Err(e) => println!("{} : {}", "Could not extend session".yellow(), e),
+            }
+            format!("{}", format!("Logged in as {} ✅", user).green())
+        }
         Err(_) => "You are not logged in.".yellow().to_string(),
     };
 
     println!("{}", kn_status);
     println!("{}", user_info);
-
 }
 
-mod tests{
+mod tests {
+
     #[test]
     fn prints_kn_and_user_info() {
         super::setup();
     }
 }
-

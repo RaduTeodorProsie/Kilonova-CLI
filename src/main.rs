@@ -23,7 +23,7 @@ fn main() {
             logging::logout();
         }
 
-        Commands::Me => {user_info::get()}
+        Commands::Me => user_info::get(),
         Commands::Search { .. } => {}
         Commands::Submit { .. } => {}
         Commands::Start => {

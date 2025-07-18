@@ -28,7 +28,7 @@ fn read_username_and_password() -> (String, String) {
     (username, password)
 }
 
-fn internal_login(username : String, password : String) -> Result<String, reqwest::Error> {
+fn internal_login(username: String, password: String) -> Result<String, reqwest::Error> {
     let client = Client::new();
     let response_text = client
         .post("https://kilonova.ro/api/auth/login")
@@ -47,10 +47,9 @@ fn login_and_print(username: String, password: String) {
         Ok(response) => response,
         Err(e) => {
             println!("Ran into error: {}", e.to_string());
-            return ()
+            return ();
         }
     };
-
 
     let response: Value = serde_json::from_str(response.as_ref()).unwrap();
     let status = response["status"].as_str().unwrap();
@@ -77,37 +76,72 @@ pub fn login() {
     login_and_print(username, password);
 }
 
-pub fn logout() {
-    let spinner = Waiter::start();
+pub fn extend_session() -> Result<(), String> {
     let token = CredentialManager::global()
         .get::<credential_manager::Token>()
-        .expect("Could not get token. Maybe you are not logged in?");
-    Client::new()
+        .unwrap();
+
+    let resp = Client::new()
+        .post("https://kilonova.ro/api/auth/extendSession")
+        .header("Authorization", token)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .map_err(|e| e.to_string())?;
+
+    if resp.status() != reqwest::StatusCode::OK {
+        return Err(resp.text().map_err(|e| e.to_string())?);
+    }
+
+    Ok(())
+}
+
+pub fn logout() {
+    // 1) start the spinner
+    let mut waiter = Waiter::start();
+
+    // 2) grab the token (or bail)
+    let token =
+        match credential_manager::CredentialManager::global().get::<credential_manager::Token>() {
+            Some(tok) => tok,
+            None => {
+                waiter.stop();
+                eprintln!("{}", "Error: Not logged in.".red());
+                return;
+            }
+        };
+
+    if let Err(e) = Client::new()
         .post("https://kilonova.ro/api/auth/logout")
         .header("Authorization", token)
         .timeout(Duration::from_secs(10))
         .send()
-        .expect("Could not send the request to logout or the site timed out");
-    CredentialManager::global().delete::<credential_manager::Token>().expect("Could not delete the token");
+    {
+        waiter.stop();
+        eprintln!("{} {}", "Error: Could not send logout request:".red(), e);
+        return;
+    }
 
-    spinner.stop();
+    if let Err(e) = CredentialManager::global().delete::<credential_manager::Token>() {
+        waiter.stop();
+        eprintln!("{} {}", "Error: Could not delete token:".red(), e);
+        return;
+    }
+
+    waiter.stop();
     println!("{}", "Successfully logged out ✅".green());
 }
 
-
-
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
     #[test]
-    fn test_login() {
-
+    pub fn test_login() {
         let username = std::env::var("TEST_USERNAME").unwrap();
         let password = std::env::var("TEST_PASSWORD").unwrap();
 
         login_and_print(username, password);
+        extend_session().unwrap_or_else(|e| panic!("{}", e));
         logout();
     }
 }
-
