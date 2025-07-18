@@ -13,7 +13,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     env:
-      TEST_USER: ${{ secrets.TEST_USERNAME }}
+      TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
       TEST_PASSWORD : ${{ secrets.TEST_PASSWORD }}
       # or ${{ vars.KILO_TOKEN }}
     steps:
