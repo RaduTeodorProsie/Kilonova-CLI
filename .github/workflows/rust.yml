@@ -13,8 +13,8 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     env:
-      TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      TEST_USERNAME: ${{ vars.TEST_USERNAME }}
+      TEST_PASSWORD: ${{ vars.TEST_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
