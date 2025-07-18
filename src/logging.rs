@@ -94,12 +94,34 @@ pub fn logout() {
     println!("{}", "Successfully logged out ✅".green());
 }
 
+
+
+#[cfg(test)]
 mod tests {
+    use super::*;
+    use sha2::{Sha256, Digest};
+
+    fn sha256_hex(input: &str) -> String {
+
+        let mut hasher = Sha256::new();
+        hasher.update(input.as_bytes());
+        let result = hasher.finalize(); // -> GenericArray<u8, U32>
+
+
+        result.iter().map(|byte| format!("{:02x}", byte)).collect()
+    }
+
     #[test]
     fn test_login() {
+
         let username = std::env::var("TEST_USERNAME").unwrap();
         let password = std::env::var("TEST_PASSWORD").unwrap();
-        super::login_and_print(username, password);
-        super::logout();
+
+        println!("Username SHA256: {}", sha256_hex(&username));
+        println!("Password SHA256: {}", sha256_hex(&password));
+
+        login_and_print(username.clone(), password.clone());
+        logout();
     }
 }
+
