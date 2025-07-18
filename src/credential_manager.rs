@@ -8,6 +8,8 @@ pub struct CredentialManager {
 
 pub struct Token;
 pub struct Cache;
+
+pub struct Language;
 pub trait IsService {
     fn service_name() -> &'static str;
 }
@@ -24,9 +26,15 @@ impl IsService for Cache {
     }
 }
 
+impl IsService for Language {
+    fn service_name() -> &'static str {
+        "kilonova-cli-submission-language"
+    }
+}
+
 impl CredentialManager {
     pub fn new() -> Self {
-        let username = env::var("USER").or_else(|_| env::var("USERNAME")).unwrap(); //you should always have a username
+        let username = env::var("USER").or_else(|_| env::var("USERNAME")).unwrap();
         Self { username }
     }
 
