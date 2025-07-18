@@ -954,6 +954,7 @@ dependencies = [
  "once_cell",
  "reqwest",
  "rpassword",
+ "serde",
  "serde_json",
  "tokio",
 ]

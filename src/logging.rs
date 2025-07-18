@@ -1,5 +1,5 @@
-use crate::credential_manager::CredentialManager;
-use crate::{credential_manager, waiter};
+use super::credential_manager::CredentialManager;
+use super::{credential_manager, waiter};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::blocking::Client;
@@ -28,23 +28,35 @@ fn read_username_and_password() -> (String, String) {
     (username, password)
 }
 
-fn internal_login(username: String, password: String) {
-    let mut spinner = Waiter::start();
-
+fn internal_login(username : String, password : String) -> Result<String, reqwest::Error> {
     let client = Client::new();
     let response_text = client
         .post("https://kilonova.ro/api/auth/login")
         .query(&[("username", username), ("password", password)])
-        .send()
-        .expect("Could not send the reqwest")
-        .text()
-        .unwrap();
+        .timeout(Duration::from_secs(10))
+        .send()?
+        .text()?;
+    Ok(response_text)
+}
 
-    spinner.stop();
+fn login_and_print(username: String, password: String) {
+    let spinner = Waiter::start();
 
-    let response: Value = serde_json::from_str(&response_text).unwrap();
+    let response = internal_login(username, password);
+    let response = match response {
+        Ok(response) => response,
+        Err(e) => {
+            println!("Ran into error: {}", e.to_string());
+            return ()
+        }
+    };
+
+
+    let response: Value = serde_json::from_str(response.as_ref()).unwrap();
     let status = response["status"].as_str().unwrap();
     let data = response["data"].as_str().unwrap();
+
+    spinner.stop();
 
     match status {
         "success" => {
@@ -62,25 +74,30 @@ fn internal_login(username: String, password: String) {
 
 pub fn login() {
     let (username, password) = read_username_and_password();
-    internal_login(username, password);
+    login_and_print(username, password);
 }
 
 pub fn logout() {
+    let spinner = Waiter::start();
     let token = CredentialManager::global()
         .get::<credential_manager::Token>()
         .expect("Could not get token. Maybe you are not logged in?");
-    let client = Client::new()
+    Client::new()
         .post("https://kilonova.ro/api/auth/logout")
         .header("Authorization", token)
+        .timeout(Duration::from_secs(10))
         .send()
-        .expect("Could not send the request to logout");
+        .expect("Could not send the request to logout or the site timed out");
+    CredentialManager::global().delete::<credential_manager::Token>().expect("Could not delete the token");
+
+    spinner.stop();
     println!("{}", "Successfully logged out ✅".green());
 }
 
 mod tests {
     #[test]
     fn test_login() {
-        super::internal_login("tester".to_string(), "test123".to_string());
+        super::login_and_print("tester".to_string(), "test123".to_string());
         super::logout();
     }
 }

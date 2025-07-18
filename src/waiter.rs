@@ -17,7 +17,10 @@ impl Waiter {
         Waiter { spinner }
     }
 
-    pub(crate) fn stop(&mut self) {
+    pub(crate) fn stop(self) {
+
         self.spinner.finish_and_clear();
+        drop(self.spinner);
     }
 }
+
