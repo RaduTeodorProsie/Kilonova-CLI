@@ -11,12 +11,27 @@ use std::time::Duration;
 #[derive(Deserialize)]
 struct ApiResponse {
     data: SubmissionData,
+    subtests: Vec<TestInfo>,
 }
 
 #[derive(Deserialize)]
 struct SubmissionData {
     status: String,
     score: f64,
+}
+
+#[derive(Deserialize)]
+struct Problem{
+    time_limit: f64,
+    memory_limit: u64,
+}
+
+#[derive(Deserialize)]
+struct TestInfo{
+    skipped : bool,
+    time : f64,
+    memory : u64,
+    percentage : f64,
 }
 
 pub fn submit(path: OsString) {
@@ -39,7 +54,7 @@ pub fn submit(path: OsString) {
                 "You need to be logged in before you can submit".bright_yellow()
             );
             return;
-        }
+        }ergoijeroigjeoirjgoierjgoiejrgoijeroigjeorijgoiejrg
     };
 
     let spinner = waiter::Waiter::start();
@@ -104,7 +119,7 @@ pub fn submit(path: OsString) {
                 if status == "finished" {
                     spinner.stop();
 
-                    let score = score.floor() as i64;
+                    let score = score.floor() as u8;
                     if score == 100 {
                         println!("{} {}", "Your score is : ".green(), score);
                     } else if score <= 50 {
