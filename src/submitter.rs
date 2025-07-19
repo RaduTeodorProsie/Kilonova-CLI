@@ -1,8 +1,10 @@
 use super::*;
+use crate::submitter::Range::{Double, Single};
 use colored::Colorize;
 use serde::Deserialize;
 use serde_json;
-use serde_json::Value;
+use serde_json::{Value, from_str};
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::thread;
@@ -11,27 +13,144 @@ use std::time::Duration;
 #[derive(Deserialize)]
 struct ApiResponse {
     data: SubmissionData,
-    subtests: Vec<TestInfo>,
 }
 
 #[derive(Deserialize)]
 struct SubmissionData {
     status: String,
     score: f64,
+    problem: Problem,
+    subtests: Vec<TestInfo>,
 }
 
 #[derive(Deserialize)]
-struct Problem{
+struct Problem {
     time_limit: f64,
     memory_limit: u64,
 }
 
 #[derive(Deserialize)]
-struct TestInfo{
-    skipped : bool,
-    time : f64,
-    memory : u64,
-    percentage : f64,
+struct TestInfo {
+    visible_id: u16,
+    skipped: bool,
+    time: f64,
+    memory: u64,
+    percentage: f64,
+}
+
+fn get_status(test: &TestInfo) -> String {
+    if test.skipped == true {
+        return "skipped".to_string();
+    }
+
+    if test.percentage == 100.0 {
+        return "correct".to_string();
+    }
+
+    if test.percentage == 0.0 {
+        return "wrong answer".to_string();
+    }
+
+    "partially correct".to_string()
+}
+
+enum Range {
+    Single(u16),
+    Double(u16, u16),
+}
+
+fn split_in_ranges(v: &Vec<u16>) -> Vec<Range> {
+    if v.is_empty() {
+        return Vec::<Range>::new();
+    }
+
+    let mut ans: Vec<Range> = vec![];
+    let mut range = Single(v[0]);
+    for &curr in &v[1..] {
+        range = match range {
+            Single(prev) if prev + 1 == curr => Double(prev, curr),
+            Double(first, second) if second + 1 == curr => Double(first, curr),
+            prev => {
+                ans.push(prev);
+                Single(curr)
+            }
+        };
+    }
+
+    ans.push(range);
+    ans
+}
+
+fn print_result(json: ApiResponse) {
+    let test_results = json.data.subtests;
+    let problem = json.data.problem;
+    let mut hashmap: HashMap<String, Vec<u16>> = HashMap::new();
+    for t in test_results {
+        if t.time == problem.time_limit {
+            hashmap
+                .entry("TLE".to_string())
+                .or_insert(vec![])
+                .push(t.visible_id);
+        } else if t.memory == problem.memory_limit {
+            hashmap
+                .entry("MLE".to_string())
+                .or_insert(vec![])
+                .push(t.visible_id);
+        } else if t.skipped == true {
+            hashmap
+                .entry("skipped".to_string())
+                .or_insert(vec![])
+                .push(t.visible_id);
+        } else {
+            hashmap
+                .entry(get_status(&t))
+                .or_insert(vec![])
+                .push(t.visible_id);
+        }
+    }
+
+    let verdicts = [
+        "correct".green(),
+        "wrong answer".red(),
+        "partially correct".yellow(),
+        "TLE".red(),
+        "MLE".red(),
+        "skipped".white(),
+    ];
+
+    for verdict in verdicts {
+        let ranges = split_in_ranges(hashmap.entry((&verdict).parse().unwrap()).or_insert(vec![]));
+        if ranges.is_empty() {
+            continue;
+        }
+
+        let mut msg = verdict.clone();
+        msg.input = "Verdict :".to_string();
+        let mut msg2 = verdict.clone();
+        msg2.input = "on ".to_string();
+
+        print!("{} {} {}", msg, verdict.clone(), msg2);
+
+        for range in ranges {
+            let mut msg = verdict.clone();
+            msg.input = match range {
+                Single(x) => format!("test {}", x),
+                Double(first, last) => format!("tests {} through {}; ", first, last),
+            };
+
+            print!("{msg}");
+        }
+
+        println!();
+    }
+
+    if json.data.score == 100.0 {
+        println!("{} {}", "Total score: ".green(), json.data.score.floor());
+    } else if json.data.score == 0.0 {
+        println!("{} {}", "Total score: ".red(), json.data.score.floor());
+    } else {
+        println!("{} {}", "Total score: ".yellow(), json.data.score.floor());
+    }
 }
 
 pub fn submit(path: OsString) {
@@ -54,7 +173,7 @@ pub fn submit(path: OsString) {
                 "You need to be logged in before you can submit".bright_yellow()
             );
             return;
-        }ergoijeroigjeoirjgoierjgoiejrgoijeroigjeorijgoiejrg
+        }
     };
 
     let spinner = waiter::Waiter::start();
@@ -110,27 +229,21 @@ pub fn submit(path: OsString) {
     );
 
     loop {
+        thread::sleep(POLL_INTERVAL);
         match reqwest::blocking::Client::new().get(&api_url).send() {
-            Ok(response) => {
+            Ok(response) if response.status() == reqwest::StatusCode::OK => {
                 let json = response.text().unwrap();
                 let json: ApiResponse = serde_json::from_str(&json)
                     .expect("Couldn't parse the response from the server");
-                let (status, score): (&str, f64) = (json.data.status.as_ref(), json.data.score);
+                let status: &str = json.data.status.as_ref();
                 if status == "finished" {
                     spinner.stop();
-
-                    let score = score.floor() as u8;
-                    if score == 100 {
-                        println!("{} {}", "Your score is : ".green(), score);
-                    } else if score <= 50 {
-                        println!("{} {}", "Your score is : ".red(), score);
-                    } else {
-                        println!("{} {}", "Your score is : ".yellow(), score);
-                    }
-
+                    print_result(json);
                     break;
                 }
             }
+
+            Ok(_) => continue,
 
             Err(e) => {
                 spinner.stop();
@@ -138,7 +251,5 @@ pub fn submit(path: OsString) {
                 break;
             }
         }
-
-        thread::sleep(POLL_INTERVAL);
     }
 }
