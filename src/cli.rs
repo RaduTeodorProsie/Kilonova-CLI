@@ -17,4 +17,5 @@ pub enum Commands {
     Me,
     Search { name: String },
     Submit { path: OsString },
+    SetLanguage { name: String },
 }

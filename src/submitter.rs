@@ -1,5 +1,4 @@
-use super::*;
-use crate::submitter::Range::{Double, Single};
+use super::{credential_manager, waiter};
 use colored::Colorize;
 use serde::Deserialize;
 use serde_json;
@@ -65,14 +64,14 @@ fn split_in_ranges(v: &Vec<u16>) -> Vec<Range> {
     }
 
     let mut ans: Vec<Range> = vec![];
-    let mut range = Single(v[0]);
+    let mut range = Range::Single(v[0]);
     for &curr in &v[1..] {
         range = match range {
-            Single(prev) if prev + 1 == curr => Double(prev, curr),
-            Double(first, second) if second + 1 == curr => Double(first, curr),
+            Range::Single(prev) if prev + 1 == curr => Range::Double(prev, curr),
+            Range::Double(first, second) if second + 1 == curr => Range::Double(first, curr),
             prev => {
                 ans.push(prev);
-                Single(curr)
+                Range::Single(curr)
             }
         };
     }
@@ -134,8 +133,8 @@ fn print_result(json: ApiResponse) {
         for range in ranges {
             let mut msg = verdict.clone();
             msg.input = match range {
-                Single(x) => format!("test {}", x),
-                Double(first, last) => format!("tests {} through {}; ", first, last),
+                Range::Single(x) => format!("test {}", x),
+                Range::Double(first, last) => format!("tests {} through {}; ", first, last),
             };
 
             print!("{msg}");
@@ -176,11 +175,24 @@ pub fn submit(path: OsString) {
         }
     };
 
+    let language =
+        credential_manager::CredentialManager::global().get::<credential_manager::Language>();
+    let language = match language {
+        Some(t) => t,
+        None => {
+            println!(
+                "{}",
+                "You need to set a preffered language before you submit".bright_yellow()
+            );
+            return;
+        }
+    };
+
     let spinner = waiter::Waiter::start();
     let file_path: PathBuf = path.into();
     let form = reqwest::blocking::multipart::Form::new()
         .text("problem_id", problem)
-        .text("language", "rust")
+        .text("language", language)
         .part(
             "code",
             reqwest::blocking::multipart::Part::file(&file_path)

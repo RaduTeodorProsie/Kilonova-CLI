@@ -10,6 +10,8 @@ mod waiter;
 
 mod checker;
 
+mod browser;
+mod language;
 mod submitter;
 mod user_info;
 
@@ -26,9 +28,12 @@ fn main() {
         }
 
         Commands::Me => user_info::get(),
-        Commands::Search { .. } => {}
+        Commands::Search { name } => browser::search(&name),
         Commands::Submit { path } => {
             submitter::submit(path);
+        }
+        Commands::SetLanguage { name } => {
+            language::set_language(name.as_ref());
         }
         Commands::Start => {
             checker::setup();
