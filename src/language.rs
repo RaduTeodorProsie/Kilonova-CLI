@@ -10,7 +10,7 @@ pub fn set_language(language: &str) {
         "go",
         "kotlin",
         "node.js",
-        "outputonly",
+        "outputOnly",
         "pascal",
         "php",
     ];

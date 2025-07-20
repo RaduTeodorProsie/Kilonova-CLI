@@ -1,7 +1,6 @@
 use super::credential_manager::CredentialManager;
 use super::{credential_manager, waiter};
 use colored::Colorize;
-use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::blocking::Client;
 use serde_json::Value;
 use std::io;
@@ -96,19 +95,16 @@ pub fn extend_session() -> Result<(), String> {
 }
 
 pub fn logout() {
-    // 1) start the spinner
-    let mut waiter = Waiter::start();
+    let waiter = Waiter::start();
 
-    // 2) grab the token (or bail)
-    let token =
-        match credential_manager::CredentialManager::global().get::<credential_manager::Token>() {
-            Some(tok) => tok,
-            None => {
-                waiter.stop();
-                eprintln!("{}", "Error: Not logged in.".red());
-                return;
-            }
-        };
+    let token = match CredentialManager::global().get::<credential_manager::Token>() {
+        Some(tok) => tok,
+        None => {
+            waiter.stop();
+            eprintln!("{}", "Error: Not logged in.".red());
+            return;
+        }
+    };
 
     if let Err(e) = Client::new()
         .post("https://kilonova.ro/api/auth/logout")

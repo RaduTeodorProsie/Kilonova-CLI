@@ -1,22 +1,14 @@
 use crate::{credential_manager, waiter};
-use reqwest::Client;
 use serde::Deserialize;
-use serde_json::{json, to_string};
 
 #[derive(Debug, Deserialize)]
 struct ApiResponse {
-    status: String,
     data: UserData,
 }
 
 #[derive(Debug, Deserialize)]
 struct UserData {
-    id: u32,
     name: String,
-    admin: bool,
-    proposer: bool,
-    display_name: String,
-    generated: bool,
 }
 
 pub fn get_user() -> Result<String, String> {

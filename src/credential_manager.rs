@@ -10,6 +10,7 @@ pub struct Token;
 pub struct Cache;
 
 pub struct Language;
+pub struct StatementLanguage;
 pub trait IsService {
     fn service_name() -> &'static str;
 }
@@ -29,6 +30,12 @@ impl IsService for Cache {
 impl IsService for Language {
     fn service_name() -> &'static str {
         "kilonova-cli-submission-language"
+    }
+}
+
+impl IsService for StatementLanguage {
+    fn service_name() -> &'static str {
+        "kilonova-cli-statement-language"
     }
 }
 
@@ -71,7 +78,7 @@ impl CredentialManager {
 
 mod tests {
     use super::*;
-    fn add_get_and_delete<T: IsService>() {
+    fn _add_get_and_delete<T: IsService>() {
         const DUMMY_VAL: &str = "093c57be61f8785dab30e54632b9896b71ae8d41b930a2b525391b83d5941828";
         CredentialManager::global()
             .set::<T>(DUMMY_VAL)
@@ -86,7 +93,7 @@ mod tests {
     }
     #[test]
     fn test_services() {
-        add_get_and_delete::<Token>();
-        add_get_and_delete::<Cache>();
+        _add_get_and_delete::<Token>();
+        _add_get_and_delete::<Cache>();
     }
 }

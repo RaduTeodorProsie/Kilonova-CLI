@@ -2,7 +2,7 @@ use super::{credential_manager, waiter};
 use colored::Colorize;
 use serde::Deserialize;
 use serde_json;
-use serde_json::{Value, from_str};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -182,7 +182,7 @@ pub fn submit(path: OsString) {
         None => {
             println!(
                 "{}",
-                "You need to set a preffered language before you submit".bright_yellow()
+                "You need to set a preferred language before you submit".bright_yellow()
             );
             return;
         }
