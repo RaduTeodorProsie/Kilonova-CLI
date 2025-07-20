@@ -31,8 +31,13 @@ jobs:
         if: runner.os != 'Linux'
         run: cargo test
 
-      - name: Upload artifact
+      - name: Zip binary
+        run: |
+          cd target/release
+          zip "${{ github.event.repository.name }}${{ runner.os == 'Windows' && '.exe' || '' }}.zip" "${{ github.event.repository.name }}${{ runner.os == 'Windows' && '.exe' || '' }}"
+
+      - name: Upload zipped binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ runner.os }}-binary
-          path: "target/release/${{ github.event.repository.name }}${{ runner.os == 'Windows' && '.exe' || '' }}"  
+          name: ${{ runner.os }}-binary-zip
+          path: "target/release/${{ github.event.repository.name }}${{ runner.os == 'Windows' && '.exe' || '' }}.zip"
