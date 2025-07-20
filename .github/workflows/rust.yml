@@ -1,50 +1,79 @@
-name: Cross-platform Rust Build
+name: Cross-platform Rust Release
 
 on:
   push:
-    branches: [ "master" ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ "master" ]
 
 jobs:
-  build:
+  build-and-test:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin_name: "kilo-CLI"
+            asset_name: "kilo-CLI-linux-amd64"
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bin_name: "kilo-CLI"
+            asset_name: "kilo-CLI-macos-amd64"
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin_name: "kilo-CLI.exe"
+            asset_name: "kilo-CLI-windows-amd64.exe"
     runs-on: ${{ matrix.os }}
     env:
       TEST_USERNAME: ${{ vars.TEST_USERNAME }}
       TEST_PASSWORD: ${{ vars.TEST_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          target: ${{ matrix.target }}
           override: true
 
-      - name: Build
-        run: cargo build --release
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Test
-        run: cargo test
+        if: matrix.os != 'ubuntu-latest'
+        run: cargo test --target ${{ matrix.target }}
 
-      - name: Prepare reproducible ZIP
+      - name: Prepare binary for release
         run: |
-          mkdir -p dist
-          BIN_NAME="kilo-CLI"
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            BIN_NAME="my_binary.exe"
-          fi
-          cp target/release/$BIN_NAME dist/
-          cd dist
-          find . -exec touch -t 200001010000.00 {} +
-          zip -X -r kilo-CLI_${{ runner.os }}.zip $BIN_NAME
+          mkdir -p release_assets
+          cp "target/${{ matrix.target }}/release/${{ matrix.bin_name }}" "release_assets/${{ matrix.asset_name }}"
         shell: bash
 
-      - name: Upload zipped binary
+      - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ runner.os }}-binary
-          path: dist/kilo-CLI_${{ runner.os }}.zip
+          name: ${{ matrix.os }}-binary
+          path: release_assets/${{ matrix.asset_name }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release_binaries
+
+      - name: List downloaded files (for debugging)
+        run: ls -R release_binaries
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release_binaries/*/*
