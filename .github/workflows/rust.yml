@@ -34,10 +34,16 @@ jobs:
       - name: Zip binary
         run: |
           cd target/release
-          zip "${{ github.event.repository.name }}${{ runner.os == 'Windows' && '.exe' || '' }}.zip" "${{ github.event.repository.name }}${{ runner.os == 'Windows' && '.exe' || '' }}"
-
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            powershell Compress-Archive -Path kilo-CLI.exe -DestinationPath kilo-CLI.exe.zip
+            mv kilo-CLI.exe.zip kilo-CLI_Windows.zip
+          else
+            zip kilo-CLI_${{ runner.os }}.zip kilo-CLI
+          fi
+        shell: bash
+      
       - name: Upload zipped binary
         uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }}-binary-zip
-          path: "target/release/${{ github.event.repository.name }}${{ runner.os == 'Windows' && '.exe' || '' }}.zip"
+          path: target/release/kilo-CLI_${{ runner.os }}.zip
