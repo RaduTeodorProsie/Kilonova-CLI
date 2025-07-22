@@ -13,7 +13,7 @@ on:
 
 jobs:
   # ===================================================================
-  #  Build Job: Compile on each OS and create uniquely named files
+  #  Build Job: Compile on each OS and create a UNIQUE artifact
   # ===================================================================
   build:
     runs-on: ${{ matrix.os }}
@@ -55,43 +55,58 @@ jobs:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: cargo test --release --target ${{ matrix.target }}
 
-      # Rename the binary to its final unique release name
+      # Stage the binary with its unique release name, as you did before. This is correct.
       - name: Stage the binary with its unique release name
         shell: bash
         run: |
           mkdir -p staging
           mv target/${{ matrix.target }}/release/${{ matrix.bin_name }} staging/${{ matrix.asset_name }}
-
-      - name: Upload the unique binary to pass to the release job
+          
+      # --- THE CRITICAL FIX: Part 1 ---
+      # Each parallel job MUST produce an artifact with a UNIQUE name.
+      # We will use the asset_name, which is unique per OS.
+      - name: Upload the unique binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binaries # All jobs upload to the SAME artifact name.
-          path: staging/* # The file inside has a unique name.
+          name: ${{ matrix.asset_name }} # e.g., "kilo-CLI-linux-amd64"
+          path: staging/*
           retention-days: 1
 
   # ===================================================================
-  #  Release Job: Create Release and upload the individual files
+  #  Release Job: Download all unique artifacts and upload individually
   # ===================================================================
   release:
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write # This is required to create a GitHub Release
+    if: success() # Only run if all build jobs passed
+
     steps:
-      - name: Download all uniquely-named binaries
+      # --- THE CRITICAL FIX: Part 2 ---
+      # Download ALL artifacts from the workflow run into one directory.
+      - name: Download all release binaries
         uses: actions/download-artifact@v4
         with:
-          name: binaries
+          # No name is specified, so it downloads every artifact.
+          # The result is a simple, flat directory with all your binaries.
           path: final-assets/
-      
-      - name: "Display structure of downloaded files (for debugging)"
+          # New `actions/download-artifact` feature merges by default now.
+          merge-multiple: true
+
+      - name: Display structure of downloaded files
         run: ls -lR final-assets/
 
-      # Create the GitHub Release and Upload Assets
+      # This single action creates the release and uploads all the files individually.
       - name: Create GitHub Release and Upload Assets
         uses: ncipollo/release-action@v1
         with:
+          # Find every file in our final directory. Because they are the only files
+          # downloaded, this is safe and will upload each one individually.
           artifacts: "final-assets/*"
+          
+          # This correctly gets the tag from either the push event or the manual dispatch.
           tag: ${{ github.event_name == 'push' && github.ref_name || github.event.inputs.tag }}
+          
           generateReleaseNotes: true
           token: ${{ secrets.GITHUB_TOKEN }}
