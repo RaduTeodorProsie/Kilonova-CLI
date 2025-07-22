@@ -4,76 +4,72 @@ on:
   push:
     tags:
       - 'v*'
-  pull_request:
-    branches: [ "master" ]
 
 jobs:
-  build-and-test:
+  build:
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            bin_name: "kilo-CLI"
-            asset_name: "kilo-CLI-linux-amd64"
+            bin: kilo-CLI
+            asset: kilo-CLI-linux-amd64
           - os: macos-latest
             target: x86_64-apple-darwin
-            bin_name: "kilo-CLI"
-            asset_name: "kilo-CLI-macos-amd64"
+            bin: kilo-CLI
+            asset: kilo-CLI-macos-amd64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            bin_name: "kilo-CLI.exe"
-            asset_name: "kilo-CLI-windows-amd64.exe"
-    runs-on: ${{ matrix.os }}
-    env:
-      TEST_USERNAME: ${{ vars.TEST_USERNAME }}
-      TEST_PASSWORD: ${{ vars.TEST_PASSWORD }}
+            bin: kilo-CLI.exe
+            asset: kilo-CLI-windows-amd64.exe
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
 
-      - name: Build binary
+      - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Test
-        if: matrix.os != 'ubuntu-latest'
-        run: cargo test --target ${{ matrix.target }}
-
-      - name: Prepare binary for release
-        run: |
-          mkdir -p release_assets
-          cp "target/${{ matrix.target }}/release/${{ matrix.bin_name }}" "release_assets/${{ matrix.asset_name }}"
-        shell: bash
+      - name: Run tests
+        if: matrix.os == 'macos-latest'
+        run: cargo test --release --target ${{ matrix.target }}
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-binary
-          path: release_assets/${{ matrix.asset_name }}
+          name: ${{ matrix.asset }}
+          path: target/${{ matrix.target }}/release/${{ matrix.bin }}
 
   release:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: build-and-test
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Download all binary artifacts
+      - name: Download all binaries
         uses: actions/download-artifact@v4
         with:
-          path: release_binaries
-
-      - name: List downloaded files (for debugging)
-        run: ls -R release_binaries
+          path: binaries
 
       - name: Create GitHub Release
+        id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          files: release_binaries/*/*
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Upload binaries to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: binaries/**/*
