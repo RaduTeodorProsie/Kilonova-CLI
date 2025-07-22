@@ -21,7 +21,7 @@ jobs:
       fail-fast: false # Run all jobs even if one fails
       matrix:
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             bin_name: kilo-CLI
             asset_name: kilo-CLI-linux-amd64
