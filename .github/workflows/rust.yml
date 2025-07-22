@@ -1,7 +1,5 @@
 name: Cross-platform Rust Release
 
- # GEMINI SAVE ME
-
 on:
   push:
     tags:
@@ -57,12 +55,11 @@ jobs:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: cargo test --release --target ${{ matrix.target }}
 
-      # This is the most important step for success.
-      # It renames the generic binary to its final, unique release name.
+      # Rename the binary to its final unique release name
       - name: Stage the binary with its unique release name
         shell: bash
         run: |
-          mkdir staging
+          mkdir -p staging
           mv target/${{ matrix.target }}/release/${{ matrix.bin_name }} staging/${{ matrix.asset_name }}
 
       - name: Upload the unique binary to pass to the release job
@@ -80,8 +77,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # This is required to create a GitHub Release
-    if: success() # Only run if all build jobs passed
-
     steps:
       - name: Download all uniquely-named binaries
         uses: actions/download-artifact@v4
@@ -92,20 +87,11 @@ jobs:
       - name: "Display structure of downloaded files (for debugging)"
         run: ls -lR final-assets/
 
-      # This ONE action does everything you want.
+      # Create the GitHub Release and Upload Assets
       - name: Create GitHub Release and Upload Assets
         uses: ncipollo/release-action@v1
-        with:        
-          # This artifacts glob is the magic. It finds every file in the
-          # 'final-assets' directory and uploads each one INDIVIDUALLY.
-          # It does NOT CREATE A ZIP FILE.
+        with:
           artifacts: "final-assets/*"
-          
-          # This expression correctly selects the tag from either the push or the manual input
           tag: ${{ github.event_name == 'push' && github.ref_name || github.event.inputs.tag }}
-          
-          # This automatically writes your release notes based on merged PRs
           generateReleaseNotes: true
-          
-          # This uses the secure, built-in GitHub token
           token: ${{ secrets.GITHUB_TOKEN }}
