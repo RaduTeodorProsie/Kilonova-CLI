@@ -52,11 +52,16 @@ jobs:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: cargo test --release --target ${{ matrix.target }}
 
-      - name: Upload binary artifact for release
+      - name: Rename binary for release
+        shell: bash
+        run: mv target/${{ matrix.target }}/release/${{ matrix.bin }} target/${{ matrix.target }}/release/${{ matrix.asset_name }}
+
+      - name: Upload uniquely named binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}
-          path: target/${{ matrix.target }}/release/${{ matrix.bin }}
+
+          name: binaries 
+          path: target/${{ matrix.target }}/release/${{ matrix.asset_name }}
           retention-days: 1
 
   release:
@@ -67,19 +72,13 @@ jobs:
     if: ${{ success() }}
 
     steps:
-      - name: Download all binaries
+
+      - name: Download all release binaries
         uses: actions/download-artifact@v4
         with:
+          name: binaries 
           path: binaries/
       
-      - name: Flatten directory structure
-        shell: bash
-        run: |
-          set -e # exit on error
-          # This robustly finds all executable files inside their subfolders...
-          # ...and moves them up into the main 'binaries' directory.
-          find binaries -mindepth 2 -type f -exec mv -t binaries/ {} +
-          
       - name: Verify final file structure
         run: ls -lR binaries/
 
@@ -87,6 +86,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:        
           tag: ${{ github.event_name == 'push' && github.ref_name || github.event.inputs.tag }}
+
           artifacts: "binaries/*"
           generateReleaseNotes: true
           token: ${{ secrets.GITHUB_TOKEN }}
