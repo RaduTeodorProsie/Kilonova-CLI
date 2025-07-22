@@ -129,6 +129,7 @@ pub fn logout() {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::user_info::*;
     use super::*;
 
     #[test]
@@ -138,6 +139,7 @@ pub mod tests {
 
         login_and_print(username, password);
         extend_session().unwrap_or_else(|e| panic!("{}", e));
+        get();
         logout();
     }
 }
