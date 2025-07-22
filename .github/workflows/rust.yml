@@ -50,41 +50,43 @@ jobs:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: cargo test --release --target ${{ matrix.target }}
 
-
-      - name: Create staging directory and copy binary
-        run: |
-          mkdir staging
-          cp target/${{ matrix.target }}/release/${{ matrix.bin }} staging/${{ matrix.asset_name }}
-
-      - name: Upload binaries for release
+      - name: Upload binary for release
         uses: actions/upload-artifact@v4
         with:
 
-          name: binaries
-          path: staging/
+          name: ${{ matrix.asset_name }}
+          path: target/${{ matrix.target }}/release/${{ matrix.bin }}
+          retention-days: 1
 
   release:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      contents: write 
+      contents: write
 
     steps:
+
       - name: Download all binaries
         uses: actions/download-artifact@v4
         with:
 
-          name: binaries
           path: binaries/
-      
 
-      - name: check
+      - name: Flatten artifact directories
+        run: |
+          for dir in binaries/*; do
+            if [ -d "$dir" ]; then
+              mv "$dir"/* "$dir/.."
+              rmdir "$dir"
+            fi
+          done
+
+      - name: Verify downloaded files
         run: ls -lR binaries
 
       - name: Create and publish GitHub Release
         uses: ncipollo/release-action@v1
         with:
-
           artifacts: "binaries/*"
-          generateReleaseNotes: true 
+          generateReleaseNotes: true
           token: ${{ secrets.GITHUB_TOKEN }}
