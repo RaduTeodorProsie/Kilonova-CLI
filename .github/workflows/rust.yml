@@ -42,6 +42,9 @@ jobs:
       - name: Run tests
         if: matrix.os == 'macos-latest'
         run: cargo test --release --target ${{ matrix.target }}
+        env:
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
