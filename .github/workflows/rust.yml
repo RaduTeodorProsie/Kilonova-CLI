@@ -15,6 +15,8 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -50,12 +52,18 @@ jobs:
           TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: cargo test --release --target ${{ matrix.target }}
+      
+      - name: Package binary for release
+        shell: bash
+        run: |
+          mkdir staging
+          cp target/${{ matrix.target }}/release/${{ matrix.bin }} staging/${{ matrix.asset_name }}
 
-      - name: Upload binary artifact for release
+      - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}
-          path: target/${{ matrix.target }}/release/${{ matrix.bin }}
+          name: binaries
+          path: staging/*
           retention-days: 1
 
   release:
@@ -63,18 +71,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write 
+    if: ${{ success() }}
 
     steps:
       - name: Download all binaries
         uses: actions/download-artifact@v4
         with:
+          name: binaries
           path: binaries/
       
-      - name: Flatten artifact directories
-        run: |
-          find binaries -mindepth 2 -type f -exec mv {} binaries/ \;
-          find binaries -mindepth 1 -type d -empty -delete
-
       - name: Verify downloaded files
         run: ls -lR binaries
 
@@ -82,7 +87,6 @@ jobs:
         uses: ncipollo/release-action@v1
         with:        
           tag: ${{ github.event_name == 'push' && github.ref_name || github.event.inputs.tag }}
-
           artifacts: "binaries/*"
           generateReleaseNotes: true
           token: ${{ secrets.GITHUB_TOKEN }}
