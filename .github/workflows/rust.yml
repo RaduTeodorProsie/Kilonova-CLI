@@ -1,5 +1,7 @@
 name: Cross-platform Rust Release
 
+ # GEMINI SAVE ME
+
 on:
   push:
     tags:
@@ -12,30 +14,31 @@ on:
         type: string
 
 jobs:
+  # ===================================================================
+  #  Build Job: Compile on each OS and create uniquely named files
+  # ===================================================================
   build:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: false # Run all jobs even if one fails
       matrix:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            bin: kilo-CLI
+            bin_name: kilo-CLI
             asset_name: kilo-CLI-linux-amd64
           - os: macos-latest
             target: x86_64-apple-darwin
-            bin: kilo-CLI
+            bin_name: kilo-CLI
             asset_name: kilo-CLI-macos-amd64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            bin: kilo-CLI.exe
+            bin_name: kilo-CLI.exe
             asset_name: kilo-CLI-windows-amd64.exe
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository source code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -47,70 +50,62 @@ jobs:
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Run tests on macOS
+      - name: Run tests on macOS (Optional)
         if: matrix.os == 'macos-latest'
         env:
           TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: cargo test --release --target ${{ matrix.target }}
 
-      - name: Upload binary artifact
+      # This is the most important step for success.
+      # It renames the generic binary to its final, unique release name.
+      - name: Stage the binary with its unique release name
+        shell: bash
+        run: |
+          mkdir staging
+          mv target/${{ matrix.target }}/release/${{ matrix.bin_name }} staging/${{ matrix.asset_name }}
+
+      - name: Upload the unique binary to pass to the release job
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}
-          path: target/${{ matrix.target }}/release/${{ matrix.asset_name }}
+          name: binaries # All jobs upload to the SAME artifact name.
+          path: staging/* # The file inside has a unique name.
           retention-days: 1
 
+  # ===================================================================
+  #  Release Job: Create Release and upload the individual files
+  # ===================================================================
   release:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-    if: success()
-
-    env:
-      TAG_NAME: ${{ github.event_name == 'push' && github.ref_name || github.event.inputs.tag }}
+      contents: write # This is required to create a GitHub Release
+    if: success() # Only run if all build jobs passed
 
     steps:
-      - name: Download all release binaries
+      - name: Download all uniquely-named binaries
         uses: actions/download-artifact@v4
         with:
-          name: '*'
-          path: binaries
+          name: binaries
+          path: final-assets/
+      
+      - name: "Display structure of downloaded files (for debugging)"
+        run: ls -lR final-assets/
 
-      - name: Flatten artifacts
-        run: |
-          mkdir -p binaries_flat
-          find binaries -type f -exec mv {} binaries_flat/ \;
-
-      - name: Create GitHub Release
-        id: create_release
+      # This ONE action does everything you want.
+      - name: Create GitHub Release and Upload Assets
         uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ env.TAG_NAME }}
+        with:        
+          # This artifacts glob is the magic. It finds every file in the
+          # 'final-assets' directory and uploads each one INDIVIDUALLY.
+          # It does NOT CREATE A ZIP FILE.
+          artifacts: "final-assets/*"
+          
+          # This expression correctly selects the tag from either the push or the manual input
+          tag: ${{ github.event_name == 'push' && github.ref_name || github.event.inputs.tag }}
+          
+          # This automatically writes your release notes based on merged PRs
           generateReleaseNotes: true
+          
+          # This uses the secure, built-in GitHub token
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Linux binary
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: binaries_flat/kilo-CLI-linux-amd64
-          asset_name: kilo-CLI-linux-amd64
-          asset_content_type: application/octet-stream
-
-      - name: Upload macOS binary
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: binaries_flat/kilo-CLI-macos-amd64
-          asset_name: kilo-CLI-macos-amd64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Windows binary
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: binaries_flat/kilo-CLI-windows-amd64.exe
-          asset_name: kilo-CLI-windows-amd64.exe
-          asset_content_type: application/octet-stream
