@@ -27,3 +27,6 @@ jobs:
 
       - name: Run tests
         run: cargo test --release
+        env:
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}

@@ -129,8 +129,8 @@ pub fn logout() {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::user_info::*;
     use super::*;
+    use crate::user_info::*;
 
     #[test]
     pub fn test_login() {
