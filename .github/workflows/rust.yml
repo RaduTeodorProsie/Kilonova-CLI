@@ -7,8 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag name to release (e.g. v1.2.3)'
+        description: 'The git tag to release (e.g., v1.2.3)'
         required: true
+        type: string
 
 jobs:
   build:
@@ -50,10 +51,9 @@ jobs:
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
         run: cargo test --release --target ${{ matrix.target }}
 
-      - name: Upload binary for release
+      - name: Upload binary artifact for release
         uses: actions/upload-artifact@v4
         with:
-
           name: ${{ matrix.asset_name }}
           path: target/${{ matrix.target }}/release/${{ matrix.bin }}
           retention-days: 1
@@ -62,31 +62,27 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write 
 
     steps:
-
       - name: Download all binaries
         uses: actions/download-artifact@v4
         with:
-
           path: binaries/
-
+      
       - name: Flatten artifact directories
         run: |
-          for dir in binaries/*; do
-            if [ -d "$dir" ]; then
-              mv "$dir"/* "$dir/.."
-              rmdir "$dir"
-            fi
-          done
+          find binaries -mindepth 2 -type f -exec mv {} binaries/ \;
+          find binaries -mindepth 1 -type d -empty -delete
 
       - name: Verify downloaded files
         run: ls -lR binaries
 
       - name: Create and publish GitHub Release
         uses: ncipollo/release-action@v1
-        with:
+        with:        
+          tag: ${{ github.event_name == 'push' && github.ref_name || github.event.inputs.tag }}
+
           artifacts: "binaries/*"
           generateReleaseNotes: true
           token: ${{ secrets.GITHUB_TOKEN }}
