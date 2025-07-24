@@ -7,6 +7,12 @@ Effortlessly manage your competitive programming workflow — login, view proble
 
 ---
 
+## Demo 👀
+
+
+https://github.com/user-attachments/assets/57755eda-3440-4c07-bd86-75785c176437
+
+
 ## ✨ Features
 
 - **Authentication**
