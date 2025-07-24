@@ -255,7 +255,12 @@ pub(crate) fn display_problem(id: &str) {
         .expect("Couldn't save the id token");
 
     let client = Client::new();
-    let statement_files = ["statement-ro.md", "statement-en.md"];
+    let mut statement_files = ["statement-ro.md", "statement-en.md"];
+    let preferred_language = credential_manager::CredentialManager::global()
+        .get::<credential_manager::StatementLanguage>();
+    if let Some("en") = preferred_language.as_deref() {
+        statement_files.reverse();
+    }
 
     println!("Searching for problem statement for ID: {}...", id);
 
