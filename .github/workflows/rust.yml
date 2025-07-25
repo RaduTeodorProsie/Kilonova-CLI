@@ -16,6 +16,8 @@ jobs:
   #  Build Job: Compile on each OS and create a UNIQUE artifact
   # ===================================================================
   build:
+    permissions:
+      contents: read
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false # Run all jobs even if one fails
